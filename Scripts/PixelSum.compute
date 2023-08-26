@@ -1,0 +1,102 @@
+#pragma kernel PixelsSumProcess
+#pragma multi_compile_local _ _STEP_FIRST
+#pragma multi_compile_local _ _Thread_128 _Thread_64 _Thread_32 _Thread_16 _Thread_8 _Thread_4 _Thread_2
+
+#if defined(_Thread_256)
+    #define __thread__ 256
+#elif defined(_Thread_128)
+    #define __thread__ 128
+#elif defined(_Thread_64)
+    #define __thread__ 64
+#elif defined(_Thread_32)
+    #define __thread__ 32
+#elif defined(_Thread_16)
+    #define __thread__ 16
+#elif defined(_Thread_8)
+    #define __thread__ 8
+#elif defined(_Thread_4)
+    #define __thread__ 4
+#elif defined(_Thread_2)
+    #define __thread__ 2
+#else
+    #define __thread__ 512
+#endif
+
+Texture2D<float> Source;
+uint current_count;
+float4 Source_Size;
+#define PIXEL_WIDTH ((uint)Source_Size.x)
+#define PIXEL_HEIGHT ((uint)Source_Size.y)
+#define PIXEL_COUNT ((uint)Source_Size.z)
+
+RWStructuredBuffer<int> GlobalCache;
+groupshared int group_cache[__thread__];
+
+struct threadData
+{
+    uint id             : SV_DispatchThreadID;
+    uint group_id       : SV_GroupID;
+    uint group_index    : SV_GroupIndex;
+};
+
+#define CACHE_ADD_GROUP_SYNC(group_cache, index, offset)    \
+    if (index < offset)                                     \
+        group_cache[index] += group_cache[index + offset];  \
+    GroupMemoryBarrierWithGroupSync();
+
+#define CACHE_ADD(group_cache, index, offset)               \
+    group_cache[index] += group_cache[index + offset];      \
+    GroupMemoryBarrier();
+
+
+[numthreads(__thread__,1,1)]
+void PixelsSumProcess (threadData thread)
+{
+    const uint tid = thread.id;
+    const uint gid = thread.group_id;
+    const uint index = thread.group_index;
+    
+#ifdef _STEP_FIRST
+    uint2 p_id_0 = uint2(tid % PIXEL_WIDTH, tid / PIXEL_HEIGHT);
+    uint2 p_id_1 = uint2((tid + PIXEL_COUNT / 2 ) % PIXEL_WIDTH, (tid + PIXEL_COUNT / 2) / PIXEL_HEIGHT);
+    group_cache[index] = (Source[p_id_0] +Source[p_id_1])*255;
+#else
+    group_cache[index] = GlobalCache[tid] + GlobalCache[tid + current_count/2];
+#endif
+    GroupMemoryBarrierWithGroupSync();
+    
+#if __thread__ > 256
+    CACHE_ADD_GROUP_SYNC(group_cache, index, 256)
+#endif
+#if __thread__ > 128
+    CACHE_ADD_GROUP_SYNC(group_cache, index, 128)
+#endif
+#if __thread__ > 64
+    CACHE_ADD_GROUP_SYNC(group_cache, index, 64)
+    if (index >= 32)
+        return;
+#endif
+#if __thread__ > 32
+    CACHE_ADD(group_cache, index, 32)
+#endif
+#if __thread__ > 16
+    CACHE_ADD(group_cache, index, 16)
+#endif
+#if __thread__ > 8
+    CACHE_ADD(group_cache, index, 8)
+#endif
+#if __thread__ > 4
+    CACHE_ADD(group_cache, index, 4)
+#endif
+#if __thread__ > 2
+    CACHE_ADD(group_cache, index, 2)
+#endif
+#if __thread__ > 1
+    CACHE_ADD(group_cache, index, 1)
+#endif
+    
+    if (index > 0)
+        return;
+    
+    GlobalCache[gid] = group_cache[0];
+}
