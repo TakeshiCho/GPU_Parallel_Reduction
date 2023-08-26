@@ -23,9 +23,9 @@ namespace GPU_Parallel_Reduction.Scripts
             LocalKeyword stepFirst = new LocalKeyword(computeShader,"_STEP_FIRST");
             LocalKeyword func = new LocalKeyword(computeShader,"_FUNC_ADD");
             Stopwatch stopwatch = new Stopwatch();
+            computeShader.SetKeyword(func,true);
             stopwatch.Start();
         
-            computeShader.SetKeyword(func,true);
             for (int i = texSize; i >= 1024;)
             {
                 if (i == texSize) 
@@ -45,14 +45,11 @@ namespace GPU_Parallel_Reduction.Scripts
                     computeShader.SetKeyword(thread,false);
                 }
             }
-            computeShader.SetKeyword(func,false);
-        
-            cache.GetData(result);
 
+            cache.GetData(result);
             stopwatch.Stop();
             SpeedMeasurement speed = new SpeedMeasurement(stopwatch.ElapsedTicks, (long)texSize * 4);
             Debug.Log($"Pixel Sum: {result[0]}; GPU spend: {speed.time} ms; Bandwidth: {speed.bandwidth} GB/s");
-        
             cache.Release();
             return result[0];
         }
