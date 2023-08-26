@@ -11,8 +11,8 @@ float4 Source_Size;
 #define PIXEL_HEIGHT ((uint)Source_Size.y)
 #define PIXEL_COUNT ((uint)Source_Size.z)
 
-RWStructuredBuffer<int> GlobalCache;
-groupshared int group_cache[__thread__];
+RWStructuredBuffer<int> Global_Cache;
+groupshared int Group_Cache[_THREAD];
 
 struct threadData
 {
@@ -21,7 +21,7 @@ struct threadData
     uint group_index    : SV_GroupIndex;
 };
 
-[numthreads(__thread__,1,1)]
+[numthreads(_THREAD,1,1)]
 void PixelsParallelReduction (threadData thread)
 {
     const uint tid = thread.id;
@@ -29,57 +29,57 @@ void PixelsParallelReduction (threadData thread)
     const uint index = thread.group_index;
     
 #ifdef _STEP_FIRST
-    uint2 p_id_0 = uint2(tid % PIXEL_WIDTH, tid / PIXEL_HEIGHT);
-    uint2 p_id_1 = uint2((tid + PIXEL_COUNT / 2 ) % PIXEL_WIDTH, (tid + PIXEL_COUNT / 2) / PIXEL_HEIGHT);
-    group_cache[index] = PARALLEL_REDUCTION_FUNC(Source, p_id_0, p_id_1) * 255;
+    uint2 p_id_0 = uint2(tid * 2  % PIXEL_WIDTH, tid * 2 / PIXEL_HEIGHT);
+    uint2 p_id_1 = uint2((tid * 2 + 1) % PIXEL_WIDTH, (tid * 2 + 1) / PIXEL_HEIGHT);
+    Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Source, p_id_0, p_id_1) * 255;
 #else
-    group_cache[index] = PARALLEL_REDUCTION_FUNC(GlobalCache, tid, tid + current_count/2);
+    Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Global_Cache, tid * 2 , tid * 2 + 1);
 #endif
     GroupMemoryBarrierWithGroupSync();
     
-#if __thread__ > 256
+#if _THREAD > 256
     if (index < 256)                                     
-        group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 256);
+        Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 256);
     GroupMemoryBarrierWithGroupSync();
 #endif
-#if __thread__ > 128
+#if _THREAD > 128
     if (index < 128)                                     
-        group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 128);
+        Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 128);
     GroupMemoryBarrierWithGroupSync();
 #endif
-#if __thread__ > 64
+#if _THREAD > 64
     if (index < 64)                                     
-        group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 64);
+        Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 64);
     GroupMemoryBarrierWithGroupSync();
     if (index >= 32)
         return;
 #endif
-#if __thread__ > 32
-    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 32);
+#if _THREAD > 32
+    Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 32);
     GroupMemoryBarrier();
 #endif
-#if __thread__ > 16
-    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 16);
+#if _THREAD > 16
+    Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 16);
     GroupMemoryBarrier();
 #endif
-#if __thread__ > 8
-    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 8);
+#if _THREAD > 8
+    Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 8);
     GroupMemoryBarrier();
 #endif
-#if __thread__ > 4
-    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 4);
+#if _THREAD > 4
+    Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 4);
     GroupMemoryBarrier();
 #endif
-#if __thread__ > 2
-    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 2);
+#if _THREAD > 2
+    Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 2);
     GroupMemoryBarrier();
 #endif
-#if __thread__ > 1
-    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 1);
+#if _THREAD > 1
+    Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 1);
 #endif
     
     if (index > 0)
         return;
     
-    GlobalCache[gid] = group_cache[0];
+    Global_Cache[gid] = Group_Cache[0];
 }

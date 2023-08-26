@@ -19,7 +19,7 @@ namespace GPU_Parallel_Reduction.Scripts
             int kernel = computeShader.FindKernel("PixelsParallelReduction");
             computeShader.SetTexture(kernel,"Source",texture);
             computeShader.SetVector("Source_Size",new Vector4(texture.width,texture.height,texSize,0));
-            computeShader.SetBuffer(kernel,"GlobalCache",cache);
+            computeShader.SetBuffer(kernel,"Global_Cache",cache);
             LocalKeyword stepFirst = new LocalKeyword(computeShader,"_STEP_FIRST");
             LocalKeyword func = new LocalKeyword(computeShader,"_FUNC_ADD");
             Stopwatch stopwatch = new Stopwatch();
