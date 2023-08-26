@@ -1,0 +1,117 @@
+#pragma kernel PixelsParallelReduction
+#pragma multi_compile_local _ _STEP_FIRST _THREAD_128 _THREAD_64 _THREAD_32 _THREAD_16 _THREAD_8 _THREAD_4 _THREAD_2
+#pragma multi_compile_local _ _FUNC_ADD _FUNC_MAX _FUNC_MIN
+
+#if defined(_THREAD_256)
+    #define __thread__ 256
+#elif defined(_THREAD_128)
+    #define __thread__ 128
+#elif defined(_THREAD_64)
+    #define __thread__ 64
+#elif defined(_THREAD_32)
+    #define __thread__ 32
+#elif defined(_THREAD_16)
+    #define __thread__ 16
+#elif defined(_THREAD_8)
+    #define __thread__ 8
+#elif defined(_THREAD_4)
+    #define __thread__ 4
+#elif defined(_THREAD_2)
+    #define __thread__ 2
+#else
+    #define __thread__ 512
+#endif
+
+#define PARALLEL_REDUCTION_ADD(src, id0, id1)  (src[id0] + src[id1])
+#define PARALLEL_REDUCTION_MAX(src, id0, id1)  (max(src[id0],src[id1]))
+#define PARALLEL_REDUCTION_MIN(src, id0, id1)  (min(src[id0],src[id1]))
+
+#if defined(_FUNC_ADD)
+    #define PARALLEL_REDUCTION_FUNC(group_cache, index, offset) PARALLEL_REDUCTION_ADD(group_cache, index, offset)
+#elif defined(_FUNC_MAX)
+    #define PARALLEL_REDUCTION_FUNC(group_cache, index, offset) PARALLEL_REDUCTION_MAX(group_cache, index, offset)
+#elif defined(_FUNC_MIN)
+    #define PARALLEL_REDUCTION_FUNC(group_cache, index, offset) PARALLEL_REDUCTION_MIN(group_cache, index, offset)
+#else
+    #define PARALLEL_REDUCTION_FUNC(group_cache, index, offset) PARALLEL_REDUCTION_ADD(group_cache, index, offset)
+#endif
+
+Texture2D<float> Source;
+uint current_count;
+float4 Source_Size;
+#define PIXEL_WIDTH ((uint)Source_Size.x)
+#define PIXEL_HEIGHT ((uint)Source_Size.y)
+#define PIXEL_COUNT ((uint)Source_Size.z)
+
+RWStructuredBuffer<int> GlobalCache;
+groupshared int group_cache[__thread__];
+
+struct threadData
+{
+    uint id             : SV_DispatchThreadID;
+    uint group_id       : SV_GroupID;
+    uint group_index    : SV_GroupIndex;
+};
+
+[numthreads(__thread__,1,1)]
+void PixelsParallelReduction (threadData thread)
+{
+    const uint tid = thread.id;
+    const uint gid = thread.group_id;
+    const uint index = thread.group_index;
+    
+#ifdef _STEP_FIRST
+    uint2 p_id_0 = uint2(tid % PIXEL_WIDTH, tid / PIXEL_HEIGHT);
+    uint2 p_id_1 = uint2((tid + PIXEL_COUNT / 2 ) % PIXEL_WIDTH, (tid + PIXEL_COUNT / 2) / PIXEL_HEIGHT);
+    group_cache[index] = PARALLEL_REDUCTION_FUNC(Source, p_id_0, p_id_1) * 255;
+#else
+    group_cache[index] = PARALLEL_REDUCTION_FUNC(GlobalCache, tid, tid + current_count/2);
+#endif
+    GroupMemoryBarrierWithGroupSync();
+    
+#if __thread__ > 256
+    if (index < 256)                                     
+        group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 256);
+    GroupMemoryBarrierWithGroupSync();
+#endif
+#if __thread__ > 128
+    if (index < 128)                                     
+        group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 128);
+    GroupMemoryBarrierWithGroupSync();
+#endif
+#if __thread__ > 64
+    if (index < 64)                                     
+        group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 64);
+    GroupMemoryBarrierWithGroupSync();
+    if (index >= 32)
+        return;
+#endif
+#if __thread__ > 32
+    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 32);
+    GroupMemoryBarrier();
+#endif
+#if __thread__ > 16
+    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 16);
+    GroupMemoryBarrier();
+#endif
+#if __thread__ > 8
+    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 8);
+    GroupMemoryBarrier();
+#endif
+#if __thread__ > 4
+    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 4);
+    GroupMemoryBarrier();
+#endif
+#if __thread__ > 2
+    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 2);
+    GroupMemoryBarrier();
+#endif
+#if __thread__ > 1
+    group_cache[index] = PARALLEL_REDUCTION_FUNC(group_cache, index, index + 1);
+#endif
+    
+    if (index > 0)
+        return;
+    
+    GlobalCache[gid] = group_cache[0];
+}
