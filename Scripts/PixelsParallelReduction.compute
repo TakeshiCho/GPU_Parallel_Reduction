@@ -1,5 +1,6 @@
 #pragma kernel PixelsParallelReduction
-#pragma multi_compile_local _ _STEP_FIRST _THREAD_128 _THREAD_64 _THREAD_32 _THREAD_16 _THREAD_8 _THREAD_4 _THREAD_2
+#pragma multi_compile_local _ _STEP_FIRST
+#pragma multi_compile_local _ _THREAD_128 _THREAD_64 _THREAD_32 _THREAD_16 _THREAD_8 _THREAD_4 _THREAD_2
 #pragma multi_compile_local _ _FUNC_ADD _FUNC_MAX _FUNC_MIN
 
 #include "PixelsParallelReductionHeader.hlsl"

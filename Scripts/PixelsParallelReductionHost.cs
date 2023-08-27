@@ -49,7 +49,7 @@ namespace GPU_Parallel_Reduction.Scripts
             cache.GetData(result);
             stopwatch.Stop();
             SpeedMeasurement speed = new SpeedMeasurement(stopwatch.ElapsedTicks, (long)texSize * 4);
-            Debug.Log($"Pixel Sum: {result[0]}; GPU spend: {speed.time} ms; Bandwidth: {speed.bandwidth} GB/s");
+            Debug.Log($"Pixel Size: {texture.width} * {texture.height} | Result: {result[0]} | GPU Time: {speed.time} ms | Bandwidth: {speed.bandwidth} GB/s");
             cache.Release();
             return result[0];
         }
@@ -58,7 +58,7 @@ namespace GPU_Parallel_Reduction.Scripts
         {
             256 => "_THREAD_128",  128 => "_THREAD_64",  64  => "_THREAD_32",
             32  => "_THREAD_16",   16  => "_THREAD_8",   8   => "_THREAD_4", 
-            4   => "_THREAD_2",    2   => "_THREAD_1",   _   => "_THREAD_1"
+            4   => "_THREAD_2",    _   => "_THREAD_2"
         };
 
         [ContextMenu("CPU Execute")]
@@ -79,7 +79,7 @@ namespace GPU_Parallel_Reduction.Scripts
             stopwatch.Stop();
             int texSize = texture.width * texture.height;
             SpeedMeasurement speed = new SpeedMeasurement(stopwatch.ElapsedTicks, texSize * 4);
-            Debug.Log($"Pixel Sum: {sum}; CPU spend: {speed.time} ms; Bandwidth: {speed.bandwidth} GB/s");
+            Debug.Log($"Pixel Size: {texture.width} * {texture.height} | Result: {sum} | CPU Time: {speed.time} ms | Bandwidth: {speed.bandwidth} GB/s");
             return sum;
         }
 
