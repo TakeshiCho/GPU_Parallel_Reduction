@@ -18,7 +18,7 @@ namespace GPU_Parallel_Reduction.Scripts
             ComputeBuffer cache = new ComputeBuffer(texture.width*texture.height/1024, sizeof(int), ComputeBufferType.Structured);
             int kernel = computeShader.FindKernel("PixelsParallelReduction");
             computeShader.SetTexture(kernel,"Source",texture);
-            computeShader.SetVector("Source_Size",new Vector4(texture.width,texture.height,texSize,0));
+            computeShader.SetVector("Source_Size",new Vector2(texture.width,texture.height));
             computeShader.SetBuffer(kernel,"Global_Cache",cache);
             LocalKeyword stepFirst = new LocalKeyword(computeShader,"_STEP_FIRST");
             LocalKeyword func = new LocalKeyword(computeShader,"_FUNC_ADD");

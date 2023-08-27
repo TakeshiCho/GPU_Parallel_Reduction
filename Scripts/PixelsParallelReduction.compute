@@ -6,10 +6,9 @@
 
 Texture2D<float> Source;
 uint current_count;
-float4 Source_Size;
+float2 Source_Size;
 #define PIXEL_WIDTH ((uint)Source_Size.x)
 #define PIXEL_HEIGHT ((uint)Source_Size.y)
-#define PIXEL_COUNT ((uint)Source_Size.z)
 
 RWStructuredBuffer<int> Global_Cache;
 groupshared int Group_Cache[_THREAD];
@@ -38,17 +37,17 @@ void PixelsParallelReduction (threadData thread)
     GroupMemoryBarrierWithGroupSync();
     
 #if _THREAD > 256
-    if (index < 256)                                     
+    if (index < 256)
         Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 256);
     GroupMemoryBarrierWithGroupSync();
 #endif
 #if _THREAD > 128
-    if (index < 128)                                     
+    if (index < 128)
         Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 128);
     GroupMemoryBarrierWithGroupSync();
 #endif
 #if _THREAD > 64
-    if (index < 64)                                     
+    if (index < 64)
         Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 64);
     GroupMemoryBarrierWithGroupSync();
     if (index >= 32)
