@@ -6,7 +6,6 @@
 #include "PixelsParallelReductionHeader.hlsl"
 
 Texture2D<float> Source;
-uint current_count;
 float2 Source_Size;
 #define PIXEL_WIDTH ((uint)Source_Size.x)
 #define PIXEL_HEIGHT ((uint)Source_Size.y)
@@ -76,10 +75,9 @@ void PixelsParallelReduction (threadData thread)
 #endif
 #if _THREAD > 1
     Group_Cache[index] = PARALLEL_REDUCTION_FUNC(Group_Cache, index, index + 1);
+    GroupMemoryBarrier();
 #endif
     
-    if (index > 0)
-        return;
-    
-    Global_Cache[gid] = Group_Cache[0];
+    if (index < 1)
+        Global_Cache[gid] = Group_Cache[0];
 }

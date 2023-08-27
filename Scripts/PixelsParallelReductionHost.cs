@@ -30,17 +30,14 @@ namespace GPU_Parallel_Reduction.Scripts
             {
                 if (i == texSize) 
                     computeShader.SetKeyword(stepFirst,true);
-                else 
-                    computeShader.SetKeyword(stepFirst,false);
-                computeShader.SetInt("current_count",i);
                 i /= 1024;
                 computeShader.Dispatch(kernel, i, 1, 1);
+                computeShader.SetKeyword(stepFirst,false);
 
                 if (i < 1024 && i != 1)
                 {
                     LocalKeyword thread = new LocalKeyword(computeShader,GetThreadKeyword(i));
                     computeShader.SetKeyword(thread,true);
-                    computeShader.SetInt("current_count",i);
                     computeShader.Dispatch(kernel, 1, 1, 1);
                     computeShader.SetKeyword(thread,false);
                 }
